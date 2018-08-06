@@ -1,0 +1,5 @@
+__init__.py
+__pycache__
+*.pickle
+alexnet_weights.npy
+variables
