@@ -37,6 +37,7 @@ class BaseModel(object):
               epochs=30,
               train_layers=None,
               stop_with_n_steps=10,
+              weights_path=None,
               model_name='model'):
         saver = tf.train.Saver()
 
@@ -61,6 +62,9 @@ class BaseModel(object):
 
         session.run(tf.global_variables_initializer())
         session.run(self.keep_prob.assign(self._keep_prob))
+
+        if weights_path is not None:
+            self.load_weights(session, weights_path)
 
         session.run(valid_data_init)
         best_accuracy = self.eval(session)
@@ -103,7 +107,7 @@ class BaseModel(object):
         session.run(self.keep_prob.assign(1))
         try:
             while True:
-                acc.append(session.run(self.error_op))
+                acc.append(session.run(self.acc_op))
         except tf.errors.OutOfRangeError:
             pass
         session.run(self.keep_prob.assign(self._keep_prob))
@@ -147,9 +151,8 @@ class AlexNet(BaseModel):
 
         flattened = tf.reshape(pool5, [-1, 6 * 6 * 256])
         fc6 = layers.fc(flattened, 4096, name='fc6')
-        dropout6 = layers.dropout(fc6, self.keep_prob)
 
-        fc7 = layers.fc(dropout6, 4096, name='fc7')
+        fc7 = layers.fc(fc6, 4096, name='fc7')
         dropout7 = layers.dropout(fc7, self.keep_prob)
 
         self.logits = layers.fc(dropout7, self.num_classes, relu=False,
@@ -158,4 +161,4 @@ class AlexNet(BaseModel):
         self.pred_op = tf.argmax(input=self.logits, axis=1)
         corrects_op = tf.equal(tf.cast(self.pred_op, tf.int32),
                                self.labels)
-        self.error_op = tf.reduce_mean(tf.cast(corrects_op, tf.float32))
+        self.acc_op = tf.reduce_mean(tf.cast(corrects_op, tf.float32))

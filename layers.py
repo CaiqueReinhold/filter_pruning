@@ -21,14 +21,14 @@ def conv(x, filter_shape, num_filters, strides, name,
         )
         biases = tf.get_variable('biases', shape=[num_filters],
                                  trainable=False)
-        tf.add_to_collection('CONV', weights)
-        tf.add_to_collection('CONV', biases)
+        tf.add_to_collection(name, weights)
+        tf.add_to_collection(name, biases)
 
         if mask:
             mask = tf.get_variable(
                 'mask',
                 shape=filter_shape + [input_channels // groups, num_filters],
-                trainable=False
+                trainable=False, initializer=tf.ones_initializer()
             )
             tf.add_to_collection('MASK', mask)
             weights = weights * mask
@@ -60,8 +60,8 @@ def fc(x, units, name, relu=True):
             trainable=False, initializer=tf.glorot_uniform_initializer(1234)
         )
         biases = tf.get_variable('biases', shape=[units], trainable=False)
-        tf.add_to_collection('FC', weights)
-        tf.add_to_collection('FC', biases)
+        tf.add_to_collection(name, weights)
+        tf.add_to_collection(name, biases)
 
         act = tf.nn.xw_plus_b(x, weights, biases, name=scope.name)
 
