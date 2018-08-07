@@ -31,6 +31,14 @@ class BaseModel(object):
                         var = tf.get_variable('weights', trainable=False)
                         session.run(var.assign(data))
 
+    def assign_drop_masks(self, session, dropped_filters):
+        masks = tf.get_collection('MASK')
+        for var, dropped in zip(masks, dropped_filters):
+            new_mask = np.ones(var.shape)
+            for f in dropped:
+                new_mask[:, :, :, f] = 0
+            session.run(var.assign(new_mask))
+
     def train(self, session, train, valid,
               lr=0.001,
               momentum=0.7,
@@ -38,7 +46,10 @@ class BaseModel(object):
               train_layers=None,
               stop_with_n_steps=10,
               weights_path=None,
+              variables_path=None,
+              dropped_filters=None,
               model_name='model'):
+        assert bool(variables_path) != bool(weights_path)
         saver = tf.train.Saver()
 
         one_hot = tf.stop_gradient(tf.one_hot(self.labels, self.num_classes))
@@ -65,6 +76,12 @@ class BaseModel(object):
 
         if weights_path is not None:
             self.load_weights(session, weights_path)
+
+        if variables_path is not None:
+            saver.restore(session, variables_path)
+
+        if dropped_filters is not None:
+            self.assign_drop_masks(session, dropped_filters)
 
         session.run(valid_data_init)
         best_accuracy = self.eval(session)

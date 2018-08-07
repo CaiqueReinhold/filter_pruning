@@ -8,29 +8,25 @@ def min_max_scaling(arr):
     return (arr - min_) / (max_ - min_)
 
 
-def drop_filters(model, drop_dataset, valid_dataset, drop_n=100,
-                 loss_margin=0.98):
-    session = tf.Session()
-    saver = tf.train.Saver(tf.get_collection('CONV') +
-                           tf.get_collection('FC'))
-
+def drop_filters(session, model, drop_dataset, valid_dataset, drop_n=50,
+                 loss_margin=None, drop_total=500):
     masks = tf.get_collection('MASK')
     conv_ops = tf.get_collection('conv_ops')
-    dropped_filters = [set() for _ in range(len(model['ops']))]
+    dropped_filters = [set() for _ in range(len(conv_ops))]
 
     for var in masks:
         mask = np.ones(var.shape)
         session.run(var.assign(mask))
 
-    drop_data_init = self.iterator.make_initializer(drop_dataset)
-    valid_data_init = self.iterator.make_initializer(valid_dataset)
+    drop_data_init = model.iterator.make_initializer(drop_dataset)
+    valid_data_init = model.iterator.make_initializer(valid_dataset)
 
     session.run(valid_data_init)
     last_eval = model.eval(session)
     keep = True
     while keep:
         session.run(drop_data_init)
-        
+
         accumulated = session.run(conv_ops)
         try:
             while True:
@@ -42,7 +38,7 @@ def drop_filters(model, drop_dataset, valid_dataset, drop_n=100,
         except tf.errors.OutOfRangeError:
             pass
 
-        accumulated = map(min_max_scaling, accumulated)
+        accumulated = [min_max_scaling(arr) for arr in accumulated]
         summations = [np.zeros((op.shape[3],)) for op in conv_ops]
 
         for i in range(len(summations)):
@@ -64,7 +60,7 @@ def drop_filters(model, drop_dataset, valid_dataset, drop_n=100,
         drop = [
             filter_indexes[((i * drop_n) <= all_sums) &
                            (all_sums < ((i + 1)) * drop_n)]
-            for i in range(len(ops))
+            for i in range(len(conv_ops))
         ]
         for i in range(len(drop)):
             dropped_filters[i].update(drop[i])
@@ -75,15 +71,20 @@ def drop_filters(model, drop_dataset, valid_dataset, drop_n=100,
                 new_mask[:, :, :, f] = 0
             session.run(var.assign(new_mask))
 
+        session.run(valid_data_init)
         new_eval = model.eval(session)
 
+        n_dropped = np.sum([len(s) for s in dropped_filters])
+
         print('Eval after {} filters dropped: {:.3f}%'.format(
-            np.sum([len(s) for s in dropped_filters]), new_eval * 100
+            n_dropped, new_eval * 100
         ))
 
-        if new_eval <= (last_eval * loss_margin):
-            keep = False
+        if loss_margin is not None:
+            if new_eval <= (last_eval * loss_margin):
+                keep = False
         else:
-            with open('drop_filters.pickle', 'wb') as f:
-                pickle.dump(dropped_filters, f)
-    session.close()
+            if n_dropped >= drop_total:
+                keep = False
+
+    return dropped_filters

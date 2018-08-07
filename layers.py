@@ -16,11 +16,9 @@ def conv(x, filter_shape, num_filters, strides, name,
         # Create tf variables for the weights and biases of the conv layer
         weights = tf.get_variable(
             'weights',
-            shape=filter_shape + [input_channels // groups, num_filters],
-            trainable=False
+            shape=filter_shape + [input_channels // groups, num_filters]
         )
-        biases = tf.get_variable('biases', shape=[num_filters],
-                                 trainable=False)
+        biases = tf.get_variable('biases', shape=[num_filters])
         tf.add_to_collection(name, weights)
         tf.add_to_collection(name, biases)
 
@@ -57,9 +55,9 @@ def fc(x, units, name, relu=True):
     with tf.variable_scope(name) as scope:
         weights = tf.get_variable(
             'weights', shape=[x.shape[1], units],
-            trainable=False, initializer=tf.glorot_uniform_initializer(1234)
+            initializer=tf.glorot_uniform_initializer(1234)
         )
-        biases = tf.get_variable('biases', shape=[units], trainable=False)
+        biases = tf.get_variable('biases', shape=[units])
         tf.add_to_collection(name, weights)
         tf.add_to_collection(name, biases)
 
