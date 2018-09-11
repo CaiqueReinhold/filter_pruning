@@ -9,7 +9,7 @@ def min_max_scaling(arr):
 
 
 def drop_filters(session, model, drop_dataset, valid_dataset, drop_n=50,
-                 loss_margin=None, drop_total=500):
+                 loss_margin=None, drop_total=50):
     masks = tf.get_collection('MASK')
     conv_ops = tf.get_collection('conv_ops')
     dropped_filters = [set() for _ in range(len(conv_ops))]
@@ -28,15 +28,22 @@ def drop_filters(session, model, drop_dataset, valid_dataset, drop_n=50,
         session.run(drop_data_init)
 
         accumulated = session.run(conv_ops)
+        n_batches = 1
         try:
             while True:
                 conv_results = session.run(conv_ops)
                 accumulated = [
-                    (accumulated[i] + conv_results[i]) / 2
+                    (accumulated[i] + conv_results[i])
                     for i in range(len(conv_ops))
                 ]
+                n_batches += 1
         except tf.errors.OutOfRangeError:
             pass
+
+        accumulated = [
+            accumulated[i] / n_batches
+            for i in range(len(conv_ops))
+        ]
 
         accumulated = [min_max_scaling(arr) for arr in accumulated]
         summations = [np.zeros((op.shape[3],)) for op in conv_ops]

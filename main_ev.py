@@ -3,7 +3,7 @@ import os
 import tensorflow as tf
 
 from models import AlexNet, IMAGENET_MEAN
-from activation_pruning import drop_filters
+from evolutionary_prunning import drop_filters
 
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -42,35 +42,15 @@ def main():
         '/home/caique/datasets/caltech101/caltech101_test_labels.txt'
     )
 
-    drop_data = tf.data.Dataset.zip((train_images, train_labels))
-    drop_data = drop_data.map(get_parser(False)).batch(1)
-    valid_data = tf.data.Dataset.zip((valid_images, valid_labels))
+    # drop_data = tf.data.Dataset.zip((train_images, train_labels))
+    # drop_data = drop_data.map(get_parser(False)).batch(1)
+    valid_data = tf.data.Dataset.zip((valid_images, valid_labels)).take(120)
     valid_data = valid_data.map(get_parser(False)).batch(120)
-    train_data = tf.data.Dataset.zip((train_images, train_labels))
+    train_data = tf.data.Dataset.zip((train_images, train_labels)).take(303)
     train_data = train_data.map(get_parser(True)).shuffle(3030).batch(101)
 
-    session = tf.Session()
     model = AlexNet(101)
-
-    saver = tf.train.Saver()
-    saver.restore(session, './variables/alexnet-caltech101-finetunned-2-2')
-
-    # dropped_filters = drop_filters(
-    #     session, model, drop_data, valid_data, drop_total=500,
-    #     drop_n=20
-    # )
-
-    # model.train(session, train_data, valid_data,
-    #             epochs=40,
-    #             lr=0.00001,
-    #             # dropped_filters=dropped_filters,
-    #             # train_layers=['fc8'],
-    #             # weights_path='alexnet_weights.npy',
-    #             variables_path='./variables/alexnet-caltech101-finetunned-33',
-    #             model_name='alexnet-caltech101-finetunned-2')
-    session.run(model.iterator.make_initializer(valid_data))
-    print('final eval: {}'.format(model.eval(session)))
-    session.close()
+    drop_filters(model, train_data, valid_data)
 
 
 if __name__ == '__main__':

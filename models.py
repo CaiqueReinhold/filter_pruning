@@ -41,7 +41,6 @@ class BaseModel(object):
 
     def train(self, session, train, valid,
               lr=0.001,
-              momentum=0.7,
               epochs=30,
               train_layers=None,
               stop_with_n_steps=10,
@@ -64,7 +63,7 @@ class BaseModel(object):
         else:
             trainable = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
 
-        opt = tf.train.MomentumOptimizer(lr, momentum)
+        opt = tf.train.GradientDescentOptimizer(lr)
         train_op = opt.minimize(loss, var_list=trainable)
         mean_loss = tf.reduce_mean(loss)
 
@@ -86,7 +85,8 @@ class BaseModel(object):
         session.run(valid_data_init)
         best_accuracy = self.eval(session)
         steps_no_improve = 0
-        print('train started')
+        start = datetime.now()
+        # print('train started')
         for epoch in range(epochs):
             if steps_no_improve > stop_with_n_steps:
                 break
@@ -104,20 +104,30 @@ class BaseModel(object):
             epoch_acc = self.eval(session)
 
             if best_accuracy < epoch_acc:
-                saver.save(session, './variables/{}'.format(model_name),
-                           global_step=epoch)
+                if model_name is not None:
+                    saver.save(session, './variables/{}'.format(model_name),
+                               global_step=epoch)
                 best_accuracy = epoch_acc
                 steps_no_improve = 0
             else:
                 steps_no_improve += 1
 
-            print(
-                'Epoch {}, cost: {}, accuracy: {:3f}% - time: {}'.format(
-                    epoch, np.mean(losses), epoch_acc * 100, datetime.now()
-                )
-            )
+            # print(
+            #     'Epoch {}, cost: {}, accuracy: {:3f}% - time: {}'.format(
+            #         epoch, np.mean(losses), epoch_acc * 100, datetime.now()
+            #     )
+            # )
 
-        print('Training complete, ran for {} epochs'.format(epoch))
+        end = datetime.now()
+        duration = (end - start).seconds / 60
+
+        print(
+            'Training complete, ran for {:.1f} minutes.'
+            ' Best acc: {:.3f}%'.format(
+                duration, best_accuracy * 100
+            )
+        )
+        return best_accuracy
 
     def eval(self, session):
         acc = []
@@ -168,8 +178,9 @@ class AlexNet(BaseModel):
 
         flattened = tf.reshape(pool5, [-1, 6 * 6 * 256])
         fc6 = layers.fc(flattened, 4096, name='fc6')
+        dropout6 = layers.dropout(fc6, self.keep_prob)
 
-        fc7 = layers.fc(fc6, 4096, name='fc7')
+        fc7 = layers.fc(dropout6, 4096, name='fc7')
         dropout7 = layers.dropout(fc7, self.keep_prob)
 
         self.logits = layers.fc(dropout7, self.num_classes, relu=False,
