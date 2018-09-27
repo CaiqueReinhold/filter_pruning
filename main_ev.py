@@ -28,29 +28,30 @@ def get_parser(augment):
     return parser
 
 
-def main():
+def main(datasets_path='/home/caique/datasets/caltech101',
+         variables_path='./variables/alexnet-caltech101-78'):
     train_images = tf.data.TextLineDataset(
-        '/home/caique/datasets/caltech101/caltech101_train.txt'
+        datasets_path + '/caltech101_train.txt'
     )
     train_labels = tf.data.TextLineDataset(
-        '/home/caique/datasets/caltech101/caltech101_train_labels.txt'
+        datasets_path + '/caltech101_train_labels.txt'
     )
     valid_images = tf.data.TextLineDataset(
-        '/home/caique/datasets/caltech101/caltech101_test.txt'
+        datasets_path + '/caltech101_valid.txt'
     )
     valid_labels = tf.data.TextLineDataset(
-        '/home/caique/datasets/caltech101/caltech101_test_labels.txt'
+        datasets_path + '/caltech101_valid_labels.txt'
     )
 
     # drop_data = tf.data.Dataset.zip((train_images, train_labels))
     # drop_data = drop_data.map(get_parser(False)).batch(1)
-    valid_data = tf.data.Dataset.zip((valid_images, valid_labels)).take(120)
+    valid_data = tf.data.Dataset.zip((valid_images, valid_labels))
     valid_data = valid_data.map(get_parser(False)).batch(120)
-    train_data = tf.data.Dataset.zip((train_images, train_labels)).take(303)
+    train_data = tf.data.Dataset.zip((train_images, train_labels))
     train_data = train_data.map(get_parser(True)).shuffle(3030).batch(101)
 
-    model = AlexNet(101)
-    drop_filters(model, train_data, valid_data)
+    model = AlexNet(101, keep_prob=1.0)
+    drop_filters(model, train_data, valid_data, variables_path)
 
 
 if __name__ == '__main__':
